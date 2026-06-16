@@ -1,142 +1,148 @@
-# MediaVault - Local Media Server
+# MediaVault
 
-A powerful local media server built with Rust + Tauri, featuring media library management, transcoding, and HLS streaming.
+[English](README.md) | [简体中文](README.zh-CN.md)
+
+A local media server built with **Rust + React**, featuring library management, HLS streaming, transcoding, and **Douyin (TikTok China) link playback**.
 
 ## Features
 
-- 📁 **Media Library Management** - Scan and organize your media files
-- 🎬 **Video Playback** - Built-in HLS player with progress tracking
-- 🎵 **Music Support** - Full audio file support
-- 🔄 **Real-time Transcoding** - FFmpeg-powered transcoding with HLS output
-- 🔍 **Search** - Full-text search across your media library
-- ❤️ **Favorites** - Mark your favorite media
-- 📊 **Statistics** - Track your media library stats
-- ⚙️ **Configurable** - Customize library paths, server port, and more
+- **Media Library** — Scan folders and organize video/audio files
+- **Video & Audio Playback** — HLS player with resume progress
+- **Douyin Player** — Parse share links, play in browser via server-side proxy (bypasses CDN Referer restrictions)
+- **Play History** — Local media and Douyin videos appear in Recent; click to resume
+- **Transcoding** — FFmpeg-powered HLS output (optional)
+- **Search & Favorites** — Find and bookmark media quickly
+- **Statistics & Settings** — Library stats, paths, port, and more
 
 ## Supported Formats
 
-### Video
-MP4, MKV, AVI, MOV, WMV, FLV, WebM, TS, M2TS, MPG, MPEG, 3GP, OGV, VOB
-
-### Audio
-MP3, FLAC, AAC, OGG, WAV, WMA, M4A, OPUS, APE, ALAC
+| Type  | Formats |
+|-------|---------|
+| Video | MP4, MKV, AVI, MOV, WMV, FLV, WebM, TS, M2TS, MPG, MPEG, 3GP, OGV, VOB |
+| Audio | MP3, FLAC, AAC, OGG, WAV, WMA, M4A, OPUS, APE, ALAC |
 
 ## Prerequisites
 
-- [Rust](https://www.rust-lang.org/tools/install) (1.70+)
-- [Node.js](https://nodejs.org/) (18+)
-- [FFmpeg](https://ffmpeg.org/download.html) (must be in PATH)
+- [Rust](https://www.rust-lang.org/tools/install) 1.70+
+- [Node.js](https://nodejs.org/) 18+
+- [FFmpeg](https://ffmpeg.org/download.html) (optional, for transcoding; must be in `PATH`)
 
-## Installation
+## Quick Start
 
-### 1. Clone the repository
+### Clone
 
 ```bash
-git clone https://github.com/yourusername/media-vault.git
-cd media-vault
+git clone https://github.com/kongbaiming/media-server.git
+cd media-server
 ```
 
-### 2. Install dependencies
+### Install dependencies
 
 ```bash
-# Install Rust dependencies
 cargo build
-
-# Install frontend dependencies
 npm install
 ```
 
-### 3. Run in development mode
+### Run (development)
+
+**Option A — Web UI (recommended)**
 
 ```bash
-# Run with Tauri (desktop app)
-npm run tauri dev
-
-# Or run backend only (API server)
+# Terminal 1: backend API (port 8080)
 cargo run
+
+# Terminal 2: frontend (port 1420)
+npm run dev
 ```
 
-### 4. Build for production
+Open http://localhost:1420
+
+**Option B — Windows one-click**
+
+```bat
+start-dev.bat
+```
+
+**Option C — Backend only**
 
 ```bash
-npm run tauri build
+cargo run
+# API available at http://localhost:8080
 ```
+
+**Option D — Tauri desktop app**
+
+```bash
+npm run tauri dev
+```
+
+### Production build
+
+```bash
+npm run build          # frontend static assets
+cargo build --release  # backend binary
+npm run tauri build    # desktop app (optional)
+```
+
+## Douyin Usage
+
+1. Open the **Douyin** page in the sidebar
+2. Paste a share link or share text (e.g. `https://v.douyin.com/xxxxx`)
+3. Click **Parse**, then **Play Video**
+4. The entry is saved to **Recent** automatically
+
+Supported link formats:
+
+- Short links: `https://v.douyin.com/xxxxx`
+- Video URLs: `https://www.douyin.com/video/xxxxx`
+- Share text containing an embedded link
 
 ## Project Structure
 
 ```
 media-server/
-├── src/                    # Rust backend
-│   ├── main.rs            # Entry point
-│   ├── lib.rs             # Library exports
-│   ├── models/            # Data models
-│   ├── scanner/           # Media file scanner
-│   ├── metadata/          # Metadata extraction
-│   ├── transcoder/        # FFmpeg transcoding
-│   ├── server/            # HTTP API server
-│   └── storage/           # JSON storage manager
-├── src-tauri/             # Tauri desktop app
-├── src/                   # React frontend
-│   ├── components/        # UI components
-│   ├── stores/            # State management
-│   ├── services/          # API services
-│   └── types/             # TypeScript types
-├── static/                # Static assets
-└── package.json           # Frontend dependencies
+├── src/                 # Rust backend + React frontend
+│   ├── main.rs          # Server entry
+│   ├── lib.rs
+│   ├── models/
+│   ├── scanner/
+│   ├── metadata/
+│   ├── transcoder/
+│   ├── server/          # Axum routes & handlers
+│   ├── storage/         # JSON persistence (~/.mediavault)
+│   ├── douyin/          # Douyin link parser & proxy
+│   ├── components/      # React UI
+│   ├── services/        # API client
+│   └── stores/
+├── src-tauri/           # Tauri desktop wrapper
+├── package.json
+└── Cargo.toml
 ```
 
-## API Endpoints
+## API Overview
 
-### Media Library
-- `GET /api/library` - List all media
-- `GET /api/library/:id` - Get media details
-- `DELETE /api/library/:id` - Delete media
-- `POST /api/library/scan` - Start library scan
-- `GET /api/library/scan/progress` - Get scan progress
+| Group | Endpoint | Description |
+|-------|----------|-------------|
+| Library | `GET /api/library` | List media |
+| Library | `POST /api/library/scan` | Scan folders |
+| Stream | `GET /api/stream/{id}/master.m3u8` | HLS playlist |
+| History | `GET /api/history` | Recent playback (deduplicated) |
+| History | `POST /api/history/douyin` | Record Douyin play |
+| History | `POST /api/history/{id}/progress` | Update progress |
+| Douyin | `POST /api/douyin/parse` | Parse share URL |
+| Douyin | `GET /api/douyin/proxy?url=...` | Proxy video stream |
+| Config | `GET/PUT /api/config` | App settings |
+| Stats | `GET /api/stats` | Library statistics |
 
-### Search
-- `GET /api/search?q=:query` - Search media
-
-### Favorites
-- `GET /api/favorites` - List favorites
-- `POST /api/favorites/:id` - Toggle favorite
-
-### Playback
-- `GET /api/stream/:id/master.m3u8` - HLS stream
-- `GET /api/stream/:id/thumbnail` - Get thumbnail
-- `GET /api/stream/:id/direct` - Direct stream URL
-
-### History
-- `GET /api/history` - Get play history
-- `POST /api/history/:id/progress` - Update progress
-
-### Transcoding
-- `POST /api/transcode` - Start transcoding
-- `GET /api/transcode/:id` - Get transcode status
-
-### Configuration
-- `GET /api/config` - Get configuration
-- `PUT /api/config` - Update configuration
-
-### Statistics
-- `GET /api/stats` - Get library statistics
-
-## Usage
-
-1. **Add Library Paths**: Go to Settings and add your media folders
-2. **Scan Library**: Click "Scan Library" to index your media files
-3. **Browse Media**: Use the Library view to browse your collection
-4. **Play Media**: Click on any media to start playback
-5. **Search**: Use the search bar to find specific media
-6. **Favorites**: Click the heart icon to add media to favorites
+Default server port: **8080**
 
 ## Configuration
 
-The application stores its configuration in `~/.mediavault/config.json`:
+Config is stored at `~/.mediavault/config.json`:
 
 ```json
 {
-  "library_paths": ["C:/Users/Videos", "D:/Music"],
+  "library_paths": ["C:/Users/Videos"],
   "auto_scan": true,
   "scan_interval": 300,
   "transcode_quality": "Auto",
@@ -147,40 +153,22 @@ The application stores its configuration in `~/.mediavault/config.json`:
 
 ## Development
 
-### Running tests
-
 ```bash
 cargo test
-```
-
-### Code formatting
-
-```bash
 cargo fmt
-```
-
-### Linting
-
-```bash
 cargo clippy
 ```
 
 ## Contributing
 
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
+2. Create a feature branch (`git checkout -b feature/my-feature`)
+3. Commit your changes
+4. Push and open a Pull Request
 
 ## Acknowledgments
 
-- [Tauri](https://tauri.app/) - Desktop application framework
-- [Axum](https://github.com/tokio-rs/axum) - Web framework
-- [FFmpeg](https://ffmpeg.org/) - Media processing
-- [Plyr](https://plyr.io/) - Media player
-- [HLS.js](https://github.com/video-dev/hls.js) - HLS player
+- [Axum](https://github.com/tokio-rs/axum) — HTTP framework
+- [Tauri](https://tauri.app/) — Desktop shell
+- [FFmpeg](https://ffmpeg.org/) — Transcoding
+- [Plyr](https://plyr.io/) & [HLS.js](https://github.com/video-dev/hls.js) — Playback
