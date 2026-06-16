@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediaVault - Connection Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            width: 100%;
+        }
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            color: #3b82f6;
+        }
+        .subtitle {
+            color: #94a3b8;
+            margin-bottom: 30px;
+        }
+        .card {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+        .card h2 {
+            font-size: 1.1rem;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: #0f172a;
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .status-dot.success { background: #22c55e; }
+        .status-dot.error { background: #ef4444; }
+        .status-dot.pending { background: #eab308; animation: pulse 1.5s infinite; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: #3b82f6;
+            color: #fff;
+        }
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+        .btn-secondary {
+            background: #334155;
+            color: #fff;
+        }
+        .btn-secondary:hover {
+            background: #475569;
+        }
+        .result {
+            margin-top: 16px;
+            padding: 12px;
+            background: #0f172a;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+        }
+        .result.show { display: block; }
+        .buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 MediaVault</h1>
+        <p class="subtitle">System Connection Test</p>
+
+        <div class="card">
+            <h2>📡 Connection Status</h2>
+            <div class="status" id="backendStatus">
+                <div class="status-dot pending"></div>
+                <div>
+                    <div><strong>Backend API</strong></div>
+                    <div style="color: #94a3b8; font-size: 0.9rem;">http://localhost:8080</div>
+                </div>
+            </div>
+            <div class="status" id="frontendStatus">
+                <div class="status-dot pending"></div>
+                <div>
+                    <div><strong>Frontend Dev Server</strong></div>
+                    <div style="color: #94a3b8; font-size: 0.9rem;">http://localhost:1420</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>🔧 System Info</h2>
+            <div class="buttons">
+                <button class="btn btn-primary" onclick="testConnection()">
+                    Test Connection
+                </button>
+                <button class="btn btn-secondary" onclick="testApi()">
+                    Test API
+                </button>
+                <button class="btn btn-secondary" onclick="clearResults()">
+                    Clear
+                </button>
+            </div>
+            <div class="result" id="result"></div>
+        </div>
+
+        <div class="card">
+            <h2>📋 Quick Start</h2>
+            <ol style="padding-left: 20px; color: #94a3b8; line-height: 1.8;">
+                <li>Open terminal in project directory</li>
+                <li>Run <code style="background: #334155; padding: 2px 6px; border-radius: 4px;">npm run tauri dev</code></li>
+                <li>Wait for compilation to complete</li>
+                <li>Open <a href="http://localhost:1420" style="color: #3b82f6;">http://localhost:1420</a></li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080';
+
+        async function testConnection() {
+            const result = document.getElementById('result');
+            result.classList.add('show');
+            result.textContent = 'Testing connection...\n';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/system/info`, {
+                    signal: AbortSignal.timeout(3000)
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    updateStatus('backendStatus', 'success');
+                    result.textContent += `✅ Backend API: Connected\n`;
+                    result.textContent += `\nSystem Info:\n${JSON.stringify(data, null, 2)}`;
+                } else {
+                    updateStatus('backendStatus', 'error');
+                    result.textContent += `❌ Backend API: Error ${response.status}\n`;
+                }
+            } catch (error) {
+                updateStatus('backendStatus', 'error');
+                result.textContent += `❌ Backend API: ${error.message}\n`;
+                result.textContent += `\nMake sure to run: npm run tauri dev\n`;
+            }
+
+            // Check frontend
+            try {
+                const response = await fetch(window.location.href, {
+                    signal: AbortSignal.timeout(1000)
+                });
+                updateStatus('frontendStatus', 'success');
+                result.textContent += `✅ Frontend: Connected\n`;
+            } catch (error) {
+                updateStatus('frontendStatus', 'error');
+                result.textContent += `❌ Frontend: ${error.message}\n`;
+            }
+        }
+
+        async function testApi() {
+            const result = document.getElementById('result');
+            result.classList.add('show');
+            result.textContent = 'Testing API endpoints...\n\n';
+
+            const endpoints = [
+                { name: 'System Info', url: '/api/system/info' },
+                { name: 'Config', url: '/api/config' },
+                { name: 'Library', url: '/api/library' },
+                { name: 'Statistics', url: '/api/stats' },
+            ];
+
+            for (const endpoint of endpoints) {
+                try {
+                    const response = await fetch(`${API_BASE}${endpoint.url}`, {
+                        signal: AbortSignal.timeout(3000)
+                    });
+                    const status = response.ok ? '✅' : '❌';
+                    result.textContent += `${status} ${endpoint.name}: ${response.status}\n`;
+                } catch (error) {
+                    result.textContent += `❌ ${endpoint.name}: ${error.message}\n`;
+                }
+            }
+
+            result.textContent += '\nAPI test complete.';
+        }
+
+        function updateStatus(elementId, status) {
+            const element = document.getElementById(elementId);
+            const dot = element.querySelector('.status-dot');
+            dot.className = `status-dot ${status}`;
+        }
+
+        function clearResults() {
+            const result = document.getElementById('result');
+            result.classList.remove('show');
+            result.textContent = '';
+        }
+
+        // Auto-test on load
+        window.addEventListener('load', () => {
+            setTimeout(testConnection, 500);
+        });
+    </script>
+</body>
+</html>

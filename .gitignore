@@ -1,0 +1,28 @@
+# Rust
+/target/
+**/*.rs.bk
+
+# Node
+node_modules/
+dist/
+*.local
+
+# Tauri
+src-tauri/target/
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Env & secrets
+.env
+.env.*
+
+# Logs
+*.log
+
+# User data (runtime)
+.mediavault/
