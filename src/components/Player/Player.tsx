@@ -69,13 +69,39 @@ export default function Player() {
 
     // Check if HLS is needed
     const hlsUrl = getHlsUrl(media.id);
+    // Formats the browser can play natively without going through the
+    // FFmpeg HLS transcoder. For these we hit the direct stream endpoint,
+    // which supports Range and works for UNC / network paths where
+    // ffmpeg would be slow or fail.
+    const nativeFormat = ["mp4", "m4v", "webm", "mp3", "m4a", "aac", "wav", "ogg", "oga", "opus", "flac"].includes(
+      (media.format || "").toLowerCase()
+    );
+    const startAt =
+      media.play_progress && media.duration
+        ? (media.play_progress / 100) * media.duration
+        : 0;
 
-    if (Hls.isSupported()) {
-      const hls = new Hls({
-        startPosition: media.play_progress
-          ? (media.play_progress / 100) * (media.duration || 0)
-          : 0,
-      });
+    if (nativeFormat) {
+      // The direct stream endpoint expects a Range request; the browser
+      // sends one automatically when the server advertises
+      // Accept-Ranges: bytes, which our handler does.
+      video.src = source;
+      if (startAt > 0) {
+        video.addEventListener(
+          "loadedmetadata",
+          () => {
+            try {
+              video.currentTime = startAt;
+            } catch {
+              /* some browsers reject seek before data */
+            }
+          },
+          { once: true }
+        );
+      }
+      video.play().catch(console.error);
+    } else if (Hls.isSupported()) {
+      const hls = new Hls({ startPosition: startAt });
 
       hls.loadSource(hlsUrl);
       hls.attachMedia(video);
@@ -87,7 +113,7 @@ export default function Player() {
       hls.on(Hls.Events.ERROR, (_event, data) => {
         if (data.fatal) {
           console.error("HLS fatal error:", data);
-          // Fallback to direct stream
+          // Fallback to direct stream.
           video.src = source;
           video.play().catch(console.error);
         }
@@ -95,11 +121,11 @@ export default function Player() {
 
       hlsRef.current = hls;
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-      // Native HLS support (Safari)
+      // Native HLS support (Safari).
       video.src = hlsUrl;
       video.play().catch(console.error);
     } else {
-      // Fallback to direct stream
+      // Last resort.
       video.src = source;
       video.play().catch(console.error);
     }
@@ -210,4 +236,5 @@ export default function Player() {
     </div>
   );
 }
+
 

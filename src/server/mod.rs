@@ -1,7 +1,9 @@
 mod routes;
-mod handlers;
 mod online_handlers;
 mod torrent_handlers;
+
+pub mod handlers;
+pub use handlers::to_long_path;
 
 use crate::scanner::MediaScanner;
 use crate::storage::StorageManager;
@@ -11,6 +13,7 @@ use crate::douyin::DouyinParser;
 use axum::Router;
 use std::sync::Arc;
 use tower_http::cors::CorsLayer;
+use tower_http::services::ServeDir;
 use tracing::info;
 
 #[derive(Clone)]
@@ -47,10 +50,13 @@ impl Server {
 }
 
 fn create_router(state: AppState) -> Router {
+    // The Tauri shell serves the React bundle itself, so this fallback is
+    // only relevant for the standalone web build. Using a non-conflicting
+    // path prefix keeps it out of the way of the API routes.
     Router::new()
         .merge(routes::api_routes())
         .merge(routes::stream_routes())
-        .merge(routes::static_routes())
+        .nest_service("/static", ServeDir::new("static"))
         .layer(CorsLayer::permissive())
         .with_state(state)
 }

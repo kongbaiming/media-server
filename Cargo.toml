@@ -54,6 +54,7 @@ base64 = "0.22.1"
 parking_lot = "0.12.5"
 sha1 = "0.11.0"
 percent-encoding = "2.3.2"
+tokio-util = { version = "0.7.18", features = ["io"] }
 
 [lints.rust]
 dead_code = "allow"

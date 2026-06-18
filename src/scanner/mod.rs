@@ -191,7 +191,20 @@ fn is_media_file(path: &Path) -> bool {
 
 /// 创建媒体文件对象
 async fn create_media_file(path: &Path) -> anyhow::Result<MediaFile> {
-    let metadata = tokio::fs::metadata(path).await?;
+    // On Windows, paths that go through the ANSI code-page conversion can
+    // panic inside tokio's blocking-task wrapper (the failure surfaces as
+    // "background task failed" with no further context). Force the verbatim
+    // `\\?\` form so the OS receives a raw UTF-16 path.
+    let lookup = crate::server::handlers::to_long_path(path);
+    let metadata = match tokio::fs::metadata(&lookup).await {
+        Ok(m) => m,
+        Err(e) => {
+            // Fall back to the original path before giving up.
+            tokio::fs::metadata(path)
+                .await
+                .map_err(|_| e)?
+        }
+    };
 
     let mut media_file = MediaFile::new(path.to_path_buf());
     media_file.size = metadata.len();
@@ -240,3 +253,4 @@ mod tests {
         );
     }
 }
+

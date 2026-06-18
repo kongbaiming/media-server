@@ -8,8 +8,9 @@ use axum::{
     Json,
 };
 use futures_util::StreamExt;
+use tokio::io::AsyncReadExt;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::path::{Path as StdPath, PathBuf};
 use tracing::{info, warn};
 
 /// 查询参数
@@ -438,25 +439,110 @@ pub async fn get_thumbnail(
     }
 }
 
-/// 直接串流
+/// Stream a local file directly to the WebView with full HTTP Range
+/// support. This is the fallback path the player uses when HLS
+/// transcoding is unavailable or the source format is already
+/// browser-native (mp4 / webm). The lookup path is forced into the
+/// `\\?\` verbatim form on Windows so UNC and other long paths
+/// actually open (the regular path can hit a 10048/259 error
+/// when the blocking-task wrapper converts through ANSI).
 pub async fn direct_stream(
     State(state): State<AppState>,
     Path(id): Path<String>,
-) -> impl IntoResponse {
-    match state.storage.get_media_file(&id) {
-        Ok(Some(file)) => {
-            // 返回文件路径供前端直接播放
-            Json(ApiResponse::success(serde_json::json!({
-                "path": file.path.to_string_lossy(),
-                "format": file.format
-            })))
+    headers: HeaderMap,
+) -> Response {
+    let file = match state.storage.get_media_file(&id) {
+        Ok(Some(f)) => f,
+        Ok(None) => {
+            return (
+                StatusCode::NOT_FOUND, Json(serde_json::json!({"success": false, "data": null, "error": "Media not found"})),
+            )
+                .into_response();
         }
-        Ok(None) => Json(ApiResponse::error("Media not found".to_string())),
-        Err(e) => Json(ApiResponse::error(e.to_string())),
-    }
-}
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"success": false, "data": null, "error": e.to_string()})),
+            )
+                .into_response();
+        }
+    };
 
-/// 获取HLS切片
+    let real_path = to_long_path(&file.path);
+    let meta = match tokio::fs::metadata(&real_path).await {
+        Ok(m) => m,
+        Err(_) => match tokio::fs::metadata(&file.path).await {
+            Ok(m) => m,
+            Err(e) => {
+                warn!("direct_stream: cannot stat {:?}: {}", real_path, e);
+                return (
+                    StatusCode::NOT_FOUND,
+                    format!("Cannot access file: {}", e),
+                )
+                    .into_response();
+            }
+        },
+    };
+    let total = meta.len();
+
+    let (start, end) = match headers
+        .get(header::RANGE)
+        .and_then(|v| v.to_str().ok())
+    {
+        Some(range) => match parse_range(range, total) {
+            Some(r) => r,
+            None => {
+                return Response::builder()
+                    .status(StatusCode::RANGE_NOT_SATISFIABLE)
+                    .header(header::CONTENT_RANGE, format!("bytes */{}", total))
+                    .body(Body::empty())
+                    .unwrap();
+            }
+        },
+        None => (0, total - 1),
+    };
+    let want = end - start + 1;
+
+    let mut f = match tokio::fs::File::open(&real_path).await {
+        Ok(f) => f,
+        Err(_) => match tokio::fs::File::open(&file.path).await {
+            Ok(f) => f,
+            Err(e) => {
+                warn!("direct_stream: cannot open {:?}: {}", real_path, e);
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Cannot open file: {}", e),
+                )
+                    .into_response();
+            }
+        },
+    };
+    use tokio::io::AsyncSeekExt;
+    if let Err(e) = f.seek(std::io::SeekFrom::Start(start)).await {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("seek failed: {}", e),
+        )
+            .into_response();
+    }
+    let limited = f.take(want);
+    let stream = tokio_util::io::ReaderStream::new(limited).map(|res| {
+        res.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+    });
+    let body = Body::from_stream(stream);
+
+    Response::builder()
+        .status(StatusCode::PARTIAL_CONTENT)
+        .header(header::CONTENT_TYPE, content_type_for(&file.format))
+        .header(header::CONTENT_LENGTH, want)
+        .header(
+            header::CONTENT_RANGE,
+            format!("bytes {}-{}/{}", start, end, total),
+        )
+        .header(header::ACCEPT_RANGES, "bytes")
+        .header("Access-Control-Allow-Origin", "*")
+        .body(body)
+        .unwrap()
+}
 pub async fn get_hls_segment(
     State(state): State<AppState>,
     Path((id, file)): Path<(String, String)>,
@@ -649,3 +735,89 @@ pub async fn proxy_douyin_video(
         }
     }
 }
+
+
+// -- Helpers for streaming local files (including long / UNC paths) --------
+
+/// On Windows, paths longer than MAX_PATH (260 chars) or UNC paths benefit
+/// from the `\\?\` or `\\?\UNC\` prefix so the underlying Win32 calls
+/// actually open the file. We add it transparently, but only once.
+pub fn to_long_path(path: &StdPath) -> PathBuf {
+    #[cfg(windows)]
+    {
+        let s = path.to_string_lossy();
+        if s.starts_with(r"\\?\") {
+            return path.to_path_buf();
+        }
+        // If the user already used a verbatim path style, don't double-prefix.
+        if let Some(rest) = s.strip_prefix(r"\\") {
+            // UNC path: \\server\share\... -> \\?\UNC\server\share\...
+            return PathBuf::from(format!(r"\\?\UNC\{}", rest));
+        }
+        return PathBuf::from(format!(r"\\?\{}", s));
+    }
+    #[cfg(not(windows))]
+    {
+        path.to_path_buf()
+    }
+}
+
+/// Map a media-format extension to a Content-Type the browser understands.
+fn content_type_for(format: &str) -> &'static str {
+    match format.to_ascii_lowercase().as_str() {
+        "mp4" | "m4v" => "video/mp4",
+        "webm" => "video/webm",
+        "mkv" => "video/x-matroska",
+        "mov" => "video/quicktime",
+        "avi" => "video/x-msvideo",
+        "wmv" => "video/x-ms-wmv",
+        "flv" => "video/x-flv",
+        "ts" | "m2ts" | "mts" => "video/mp2t",
+        "mpg" | "mpeg" | "vob" => "video/mpeg",
+        "3gp" | "3gpp" => "video/3gpp",
+        "ogv" => "video/ogg",
+        "mp3" => "audio/mpeg",
+        "m4a" => "audio/mp4",
+        "aac" => "audio/aac",
+        "flac" => "audio/flac",
+        "wav" => "audio/wav",
+        "ogg" | "oga" => "audio/ogg",
+        "opus" => "audio/opus",
+        "wma" => "audio/x-ms-wma",
+        "ape" => "audio/x-ape",
+        "alac" => "audio/x-alac",
+        _ => "application/octet-stream",
+    }
+}
+
+fn parse_range(s: &str, total: u64) -> Option<(u64, u64)> {
+    let s = s.strip_prefix("bytes=")?;
+    let mut parts = s.splitn(2, '-');
+    let start = parts.next()?.trim();
+    let end = parts.next()?.trim();
+    let start: u64 = if start.is_empty() {
+        // Suffix form: -N -> last N bytes.
+        let n: u64 = end.parse().ok()?;
+        total.saturating_sub(n)
+    } else {
+        start.parse().ok()?
+    };
+    let end: u64 = if end.is_empty() {
+        total - 1
+    } else {
+        u64::from_str_radix(end, 10).ok()?.min(total - 1)
+    };
+    if start > end || start >= total {
+        return None;
+    }
+    Some((start, end))
+}
+
+
+
+
+
+
+
+
+
