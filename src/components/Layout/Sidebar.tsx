@@ -8,6 +8,8 @@ import {
   Heart,
   Clock,
   Video,
+  Radio,
+  Magnet,
 } from "lucide-react";
 import { useMediaStore } from "@/stores/mediaStore";
 import { cn } from "@/lib/utils";
@@ -16,6 +18,8 @@ const navItems = [
   { to: "/", icon: Library, label: "Library" },
   { to: "/search", icon: Search, label: "Search" },
   { to: "/douyin", icon: Video, label: "Douyin" },
+  { to: "/online", icon: Radio, label: "Online" },
+  { to: "/torrent", icon: Magnet, label: "Torrents" },
   { to: "/settings", icon: Settings, label: "Settings" },
 ];
 
@@ -31,13 +35,11 @@ export default function Sidebar() {
 
   return (
     <aside className="w-64 bg-dark-900 border-r border-dark-800 flex flex-col">
-      {/* Logo */}
       <div className="p-6 border-b border-dark-800">
         <h1 className="text-2xl font-bold text-primary-400">MediaVault</h1>
         <p className="text-sm text-dark-400 mt-1">Local Media Server</p>
       </div>
 
-      {/* Navigation */}
       <nav className="flex-1 p-4 space-y-1">
         <div className="mb-6">
           <h2 className="text-xs font-semibold text-dark-400 uppercase tracking-wider mb-3 px-3">
@@ -63,7 +65,6 @@ export default function Sidebar() {
           ))}
         </div>
 
-        {/* Filters */}
         <div className="mb-6">
           <h2 className="text-xs font-semibold text-dark-400 uppercase tracking-wider mb-3 px-3">
             Filters
@@ -100,7 +101,6 @@ export default function Sidebar() {
           </button>
         </div>
 
-        {/* Quick Access */}
         <div>
           <h2 className="text-xs font-semibold text-dark-400 uppercase tracking-wider mb-3 px-3">
             Quick Access
@@ -121,27 +121,6 @@ export default function Sidebar() {
           </NavLink>
         </div>
       </nav>
-
-      {/* Stats */}
-      <div className="p-4 border-t border-dark-800">
-        <div className="bg-dark-800 rounded-lg p-4">
-          <h3 className="text-sm font-medium text-dark-300 mb-2">Storage</h3>
-          <div className="space-y-1">
-            <div className="flex justify-between text-sm">
-              <span className="text-dark-400">Videos</span>
-              <span className="text-white">0</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-dark-400">Music</span>
-              <span className="text-white">0</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-dark-400">Total</span>
-              <span className="text-white">0 GB</span>
-            </div>
-          </div>
-        </div>
-      </div>
     </aside>
   );
 }

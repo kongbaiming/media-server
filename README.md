@@ -8,6 +8,8 @@ A local media server built with **Rust + React**, featuring library management, 
 
 - **Media Library** — Scan folders and organize video/audio files
 - **Video & Audio Playback** — HLS player with resume progress
+- **Online & Live Streams** — Paste any m3u8 / mp4 / webm / ts URL. The backend proxies it through localhost so CORS and Referer restrictions on the origin server do not bite the in-app player. HLS auto-detected; live HLS supported.
+- **Torrents & Magnet Links** — Paste a magnet URI or upload a `.torrent` file. The backend fetches metadata from public caches (itorrents.org, btcache.me) and then streams pieces via HTTP web seeds (BEP 17/19) as they arrive, verifying SHA1 per piece.
 - **Douyin Player** — Parse share links, play in browser via server-side proxy (bypasses CDN Referer restrictions)
 - **Play History** — Local media and Douyin videos appear in Recent; click to resume
 - **Transcoding** — FFmpeg-powered HLS output (optional)
@@ -168,6 +170,14 @@ media-server/
 | History | `POST /api/history/{id}/progress` | Update progress |
 | Douyin | `POST /api/douyin/parse` | Parse share URL |
 | Douyin | `GET /api/douyin/proxy?url=...` | Proxy video stream |
+| Online | `GET /api/online/probe?url=...` | Probe an m3u8/mp4 URL (content-type, kind) |
+| Online | `GET /api/stream/online?url=...` | Generic stream proxy with Range support |
+| Online | `GET /api/online/recent` | Recently-played online / Douyin URLs |
+| Torrent | `POST /api/torrent/add` | Add a magnet or uploaded `.torrent` |
+| Torrent | `GET /api/torrent/list` | List active sessions |
+| Torrent | `GET /api/torrent/{id}` | Status of a single session |
+| Torrent | `DELETE /api/torrent/{id}` | Remove a session (and its data) |
+| Torrent | `GET /api/stream/torrent/{id}` | Stream the partially-downloaded file |
 | Config | `GET/PUT /api/config` | App settings |
 | Stats | `GET /api/stats` | Library statistics |
 | System | `GET /api/system/info` | Backend / FFmpeg status |
@@ -210,3 +220,6 @@ cargo clippy
 - [Tauri](https://tauri.app/) — Desktop shell
 - [FFmpeg](https://ffmpeg.org/) — Transcoding
 - [Plyr](https://plyr.io/) & [HLS.js](https://github.com/video-dev/hls.js) — Playback
+
+
+

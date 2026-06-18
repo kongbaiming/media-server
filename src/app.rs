@@ -2,19 +2,18 @@ use crate::douyin::DouyinParser;
 use crate::scanner::MediaScanner;
 use crate::server::{AppState, Server};
 use crate::storage::StorageManager;
+use crate::torrent::TorrentManager;
 use crate::transcoder::{self, Transcoder};
 use std::sync::Arc;
 use tracing::{error, info, warn};
 use tracing_subscriber::EnvFilter;
 
-/// 初始化日志
 pub fn init_tracing() {
     let _ = tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
         .try_init();
 }
 
-/// 启动 MediaVault 后端服务（阻塞，直到服务器退出）
 pub async fn run_server() -> anyhow::Result<()> {
     init_tracing();
 
@@ -41,21 +40,28 @@ pub async fn run_server() -> anyhow::Result<()> {
     let scanner = Arc::new(MediaScanner::new());
     info!("Media scanner initialized");
 
-    let storage_dir = dirs::home_dir()
+    let mediavault_home = dirs::home_dir()
         .unwrap_or_default()
-        .join(".mediavault")
-        .join("transcode");
-    let transcoder = Arc::new(Transcoder::new(storage_dir));
+        .join(".mediavault");
+    let transcoder_dir = mediavault_home.join("transcode");
+    let torrent_dir = mediavault_home.join("torrents");
+    std::fs::create_dir_all(&torrent_dir).ok();
+
+    let transcoder = Arc::new(Transcoder::new(transcoder_dir));
     info!("Transcoder initialized");
 
     let douyin = Arc::new(DouyinParser::new());
     info!("Douyin parser initialized");
+
+    let torrents = Arc::new(TorrentManager::new(torrent_dir));
+    info!("Torrent manager initialized");
 
     let state = AppState {
         storage: storage.clone(),
         scanner: scanner.clone(),
         transcoder: transcoder.clone(),
         douyin: douyin.clone(),
+        torrents: torrents.clone(),
     };
 
     if config.auto_scan && !config.library_paths.is_empty() {
@@ -74,7 +80,7 @@ pub async fn run_server() -> anyhow::Result<()> {
                     }
                 }
                 Err(e) => {
-                    error!("Automatic scan failed: {}", e);
+                    error!("Automatic library scan failed: {}", e);
                 }
             }
         });
@@ -87,7 +93,6 @@ pub async fn run_server() -> anyhow::Result<()> {
     server.start().await
 }
 
-/// 在后台线程启动服务器（供 Tauri 等桌面壳使用）
 pub fn spawn_server() {
     std::thread::Builder::new()
         .name("mediavault-server".into())

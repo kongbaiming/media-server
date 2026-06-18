@@ -49,6 +49,11 @@ chrono = "0.4"
 
 # Regex
 regex = "1"
+lava_torrent = { version = "0.11.1", default-features = false }
+base64 = "0.22.1"
+parking_lot = "0.12.5"
+sha1 = "0.11.0"
+percent-encoding = "2.3.2"
 
 [lints.rust]
 dead_code = "allow"

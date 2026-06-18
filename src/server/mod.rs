@@ -1,8 +1,11 @@
 mod routes;
 mod handlers;
+mod online_handlers;
+mod torrent_handlers;
 
 use crate::scanner::MediaScanner;
 use crate::storage::StorageManager;
+use crate::torrent::TorrentManager;
 use crate::transcoder::Transcoder;
 use crate::douyin::DouyinParser;
 use axum::Router;
@@ -10,16 +13,15 @@ use std::sync::Arc;
 use tower_http::cors::CorsLayer;
 use tracing::info;
 
-/// 应用状态
 #[derive(Clone)]
 pub struct AppState {
     pub storage: Arc<StorageManager>,
     pub scanner: Arc<MediaScanner>,
     pub transcoder: Arc<Transcoder>,
     pub douyin: Arc<DouyinParser>,
+    pub torrents: Arc<TorrentManager>,
 }
 
-/// HTTP服务器
 pub struct Server {
     port: u16,
     state: AppState,
@@ -30,7 +32,6 @@ impl Server {
         Self { port, state }
     }
 
-    /// 启动服务器
     pub async fn start(&self) -> anyhow::Result<()> {
         let app = create_router(self.state.clone());
 
@@ -45,7 +46,6 @@ impl Server {
     }
 }
 
-/// 创建路由
 fn create_router(state: AppState) -> Router {
     Router::new()
         .merge(routes::api_routes())
@@ -71,6 +71,7 @@ mod tests {
             scanner,
             transcoder,
             douyin,
+            torrents: Arc::new(TorrentManager::new(std::path::PathBuf::from("/tmp/torrents"))),
         };
 
         assert!(state.storage.load_media_library().is_ok());

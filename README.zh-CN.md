@@ -8,6 +8,8 @@
 
 - **媒体库管理** — 扫描文件夹，整理视频与音频
 - **在线播放** — 内置 HLS 播放器，支持断点续播
+- **在线 & 直播流** — 粘贴任意 m3u8 / mp4 / webm / ts 链接，后端通过本地代理转发，绕过源站的 CORS / Referer 限制；自动识别 HLS，支持直播 HLS。
+- **种子 & 磁力链接** — 粘贴磁力链或上传 `.torrent` 文件，后端从公共缓存（itorrents.org、btcache.me）拉取 metadata，再通过 HTTP Web Seed（BEP 17/19）按 piece 流式下载并校验 SHA1。
 - **抖音播放** — 解析分享链接，通过服务端代理播放（绕过 CDN Referer 限制）
 - **播放历史** — 本地媒体与抖音视频统一显示在「Recent」，点击即可继续播放
 - **转码** — 基于 FFmpeg 的 HLS 转码（可选）
@@ -168,6 +170,14 @@ media-server/
 | 历史 | `POST /api/history/{id}/progress` | 更新播放进度 |
 | 抖音 | `POST /api/douyin/parse` | 解析分享链接 |
 | 抖音 | `GET /api/douyin/proxy?url=...` | 代理视频流 |
+| 在线 | `GET /api/online/probe?url=...` | 探测 m3u8/mp4 URL（content-type、kind） |
+| 在线 | `GET /api/stream/online?url=...` | 通用流代理，支持 Range |
+| 在线 | `GET /api/online/recent` | 最近播放的在线 / 抖音链接 |
+| 种子 | `POST /api/torrent/add` | 添加磁力链或上传的 `.torrent` |
+| 种子 | `GET /api/torrent/list` | 列出活动会话 |
+| 种子 | `GET /api/torrent/{id}` | 单个会话状态 |
+| 种子 | `DELETE /api/torrent/{id}` | 移除会话（及其数据） |
+| 种子 | `GET /api/stream/torrent/{id}` | 流式读取部分下载的文件 |
 | 配置 | `GET/PUT /api/config` | 应用设置 |
 | 统计 | `GET /api/stats` | 库统计信息 |
 | 系统 | `GET /api/system/info` | 后端 / FFmpeg 状态 |
@@ -210,3 +220,5 @@ cargo clippy
 - [Tauri](https://tauri.app/) — 桌面应用
 - [FFmpeg](https://ffmpeg.org/) — 转码
 - [Plyr](https://plyr.io/) & [HLS.js](https://github.com/video-dev/hls.js) — 播放器
+
+

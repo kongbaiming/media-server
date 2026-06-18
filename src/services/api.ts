@@ -1,14 +1,4 @@
-import type {
-  ApiResponse,
-  AppConfig,
-  DouyinVideo,
-  MediaFile,
-  PaginatedResponse,
-  PlayHistory,
-  ScanProgress,
-  LibraryStatistics,
-  TranscodeTask,
-} from "@/types";
+import type { ApiResponse, AppConfig, DouyinVideo, MediaFile, OnlineRecentItem, PaginatedResponse, PlayHistory, ProbeResult, ScanProgress, LibraryStatistics, TorrentSessionInfo, TranscodeTask } from "@/types";
 
 const BASE_URL = "http://127.0.0.1:8080";
 
@@ -255,3 +245,53 @@ export async function getDouyinPlayUrl(
     body: JSON.stringify({ url }),
   });
 }
+
+// -- Online / live streams -------------------------------------------------
+
+export function onlineStreamUrl(url: string, referer?: string): string {
+  const params = new URLSearchParams({ url });
+  if (referer) params.set("referer", referer);
+  return `${BASE_URL}/api/stream/online?${params.toString()}`;
+}
+
+export async function probeOnline(
+  url: string,
+  referer?: string
+): Promise<ApiResponse<ProbeResult>> {
+  const params = new URLSearchParams({ url });
+  if (referer) params.set("referer", referer);
+  return fetchApi(`/api/online/probe?${params.toString()}`);
+}
+
+export async function getOnlineRecent(): Promise<ApiResponse<OnlineRecentItem[]>> {
+  return fetchApi("/api/online/recent");
+}
+
+// -- Torrents --------------------------------------------------------------
+
+export async function addTorrent(
+  body: { magnet?: string; torrent_b64?: string }
+): Promise<ApiResponse<TorrentSessionInfo>> {
+  return fetchApi(
+    "/api/torrent/add",
+    { method: "POST", body: JSON.stringify(body) },
+    30000
+  );
+}
+
+export async function listTorrents(): Promise<ApiResponse<TorrentSessionInfo[]>> {
+  return fetchApi("/api/torrent/list");
+}
+
+export async function getTorrent(
+  id: string
+): Promise<ApiResponse<TorrentSessionInfo>> {
+  return fetchApi(`/api/torrent/${encodeURIComponent(id)}`);
+}
+
+export async function deleteTorrent(id: string): Promise<ApiResponse<null>> {
+  return fetchApi(`/api/torrent/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+}
+

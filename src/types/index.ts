@@ -119,3 +119,45 @@ export interface DouyinVideo {
   comments: number | null;
   shares: number | null;
 }
+
+
+// Online / live stream
+export type StreamKind = "hls" | "direct" | "audio" | "other";
+
+export interface ProbeResult {
+  url: string;
+  content_type: string | null;
+  content_length: number | null;
+  accepts_ranges: boolean;
+  kind: StreamKind;
+}
+
+export interface OnlineRecentItem {
+  url: string;
+  title: string | null;
+  kind: string | null;
+  last_played: string;
+}
+
+// Torrent
+export type SessionStatus = "resolving" | "downloading" | "ready" | "failed";
+
+export interface TorrentFileInfo {
+  path: string;
+  length: number;
+  downloaded: number;
+}
+
+export interface TorrentSessionInfo {
+  id: string;
+  name: string;
+  status: SessionStatus;
+  progress: number;
+  downloaded: number;
+  total: number;
+  download_speed_bps: number;
+  info_hash: string;
+  files: TorrentFileInfo[];
+  error: string | null;
+  stream_url: string;
+}
