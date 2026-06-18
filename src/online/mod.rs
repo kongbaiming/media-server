@@ -1,8 +1,9 @@
 //! Generic online / live stream proxy.
 //!
-//! Provides a backend-side HTTP proxy that fetches an arbitrary m3u8 / mp4 /
+//! Provides a backend-side HTTP proxy that fetches any m3u8 / mp4 /
 //! webm / ts URL on behalf of the WebView, bypassing CORS and Referer
-//! restrictions. Supports HTTP Range requests so the player can seek.
+//! restrictions on the origin server. Supports HTTP Range requests so the
+//! player can seek.
 
 use axum::{
     body::Body,
@@ -47,9 +48,24 @@ pub enum StreamKind {
 impl StreamKind {
     pub fn from_content_type(ct: Option<&str>, url: &str) -> Self {
         let url_lc = url.to_lowercase();
+        // A .m3u8 URL is always HLS regardless of what the server claims
+        // the content-type is. Apple BipBop, for example, serves the
+        // master playlist as `audio/x-mpegurl`, which is the IANA-registered
+        // type for the m3u format and matches audio streams too. Detect the
+        // URL shape FIRST so hls.js is used for the player.
+        if url_lc.contains(".m3u8") || url_lc.contains(".m3u?") {
+            return StreamKind::Hls;
+        }
         if let Some(ct) = ct {
             let ct = ct.split(';').next().unwrap_or("").trim();
-            if ct == "application/vnd.apple.mpegurl" || ct == "application/x-mpegurl" {
+            // The m3u8 content-type family:
+            //   application/vnd.apple.mpegurl  (Apple legacy)
+            //   application/x-mpegurl
+            //   audio/x-mpegurl               (IANA, also used for m3u8 audio)
+            if ct == "application/vnd.apple.mpegurl"
+                || ct == "application/x-mpegurl"
+                || ct == "audio/x-mpegurl"
+            {
                 return StreamKind::Hls;
             }
             if ct.starts_with("video/") {
@@ -59,18 +75,30 @@ impl StreamKind {
                 return StreamKind::Audio;
             }
         }
-        if url_lc.contains(".m3u8") {
-            StreamKind::Hls
-        } else if url_lc.contains(".mp3")
+        if url_lc.contains(".mp4")
+            || url_lc.contains(".m4v")
+            || url_lc.contains(".webm")
+            || url_lc.contains(".mkv")
+            || url_lc.contains(".mov")
+            || url_lc.contains(".ts")
+            || url_lc.contains(".m2ts")
+            || url_lc.contains(".mpg")
+            || url_lc.contains(".mpeg")
+            || url_lc.contains(".vob")
+            || url_lc.contains(".3gp")
+            || url_lc.contains(".ogv")
+        {
+            return StreamKind::Direct;
+        }
+        if url_lc.contains(".mp3")
             || url_lc.contains(".aac")
             || url_lc.contains(".m4a")
             || url_lc.contains(".ogg")
             || url_lc.contains(".flac")
         {
-            StreamKind::Audio
-        } else {
-            StreamKind::Other
+            return StreamKind::Audio;
         }
+        StreamKind::Other
     }
 }
 
