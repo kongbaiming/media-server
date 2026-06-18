@@ -38,6 +38,7 @@ export interface MediaFile {
   favorite: boolean;
   last_played: string | null;
   play_progress: number | null;
+  scraped?: ScrapedMetadata;
 }
 
 export interface PlayHistory {
@@ -62,6 +63,8 @@ export interface AppConfig {
   server_port: number;
   thumbnail_width: number;
   thumbnail_height: number;
+  tmdb_api_key?: string;
+  synology_shares?: SynologyShare[];
 }
 
 export interface ScanProgress {
@@ -160,4 +163,56 @@ export interface TorrentSessionInfo {
   files: TorrentFileInfo[];
   error: string | null;
   stream_url: string;
+}
+
+
+// Metadata scraper (TMDB)
+export interface ScrapedMetadata {
+  source?: string;
+  tmdb_id?: number;
+  title?: string;
+  original_title?: string;
+  year?: number;
+  plot?: string;
+  rating?: number;
+  genres?: string[];
+  director?: string;
+  cast?: string[];
+  runtime_minutes?: number;
+  poster_path?: string;
+  backdrop_path?: string;
+  collection_id?: number;
+  collection_name?: string;
+  scraped_at?: string;
+  scrape_error?: string;
+}
+
+export interface MovieCollection {
+  id: number;
+  name: string;
+  overview?: string;
+  poster_path?: string;
+  backdrop_path?: string;
+  movies: MediaFile[];
+}
+
+export interface ScraperStatus {
+  enabled: boolean;
+  queue_len: number;
+  last_run_at?: string;
+  last_error?: string;
+  scraped: number;
+  failed: number;
+}
+
+export interface SynologyShare {
+  quickconnect_id: string;
+  host?: string;
+  share: string;
+  label?: string;
+}
+
+export interface ScraperImageUrl {
+  url: string;
+  size: string;
 }

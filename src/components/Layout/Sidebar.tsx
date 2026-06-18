@@ -1,6 +1,7 @@
 import { NavLink } from "react-router-dom";
 import {
   Library,
+  Layers,
   Search,
   Settings,
   Film,
@@ -20,6 +21,7 @@ const navItems = [
   { to: "/douyin", icon: Video, label: "Douyin" },
   { to: "/online", icon: Radio, label: "Online" },
   { to: "/torrent", icon: Magnet, label: "Torrents" },
+  { to: "/collections", icon: Layers, label: "Collections" },
   { to: "/settings", icon: Settings, label: "Settings" },
 ];
 
@@ -124,3 +126,9 @@ export default function Sidebar() {
     </aside>
   );
 }
+
+
+
+
+
+

@@ -1,6 +1,7 @@
 mod routes;
 mod online_handlers;
 mod torrent_handlers;
+mod scraper_handlers;
 
 pub mod handlers;
 pub use handlers::to_long_path;
@@ -10,6 +11,7 @@ use crate::storage::StorageManager;
 use crate::torrent::TorrentManager;
 use crate::transcoder::Transcoder;
 use crate::douyin::DouyinParser;
+use crate::metadata_scraper::Scraper;
 use axum::Router;
 use std::sync::Arc;
 use tower_http::cors::CorsLayer;
@@ -23,6 +25,7 @@ pub struct AppState {
     pub transcoder: Arc<Transcoder>,
     pub douyin: Arc<DouyinParser>,
     pub torrents: Arc<TorrentManager>,
+    pub scraper: Arc<Scraper>,
 }
 
 pub struct Server {
@@ -50,9 +53,6 @@ impl Server {
 }
 
 fn create_router(state: AppState) -> Router {
-    // The Tauri shell serves the React bundle itself, so this fallback is
-    // only relevant for the standalone web build. Using a non-conflicting
-    // path prefix keeps it out of the way of the API routes.
     Router::new()
         .merge(routes::api_routes())
         .merge(routes::stream_routes())
@@ -78,6 +78,7 @@ mod tests {
             transcoder,
             douyin,
             torrents: Arc::new(TorrentManager::new(std::path::PathBuf::from("/tmp/torrents"))),
+            scraper: Scraper::new(Arc::new(StorageManager::new().unwrap())),
         };
 
         assert!(state.storage.load_media_library().is_ok());

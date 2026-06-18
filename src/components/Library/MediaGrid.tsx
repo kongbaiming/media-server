@@ -1,9 +1,9 @@
-import { Heart, Play, Clock } from "lucide-react";
+import { Heart, Play, Clock, Star } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { MediaFile } from "@/types";
 import { cn } from "@/lib/utils";
 import { formatDuration, formatFileSize, getResolutionLabel } from "@/lib/utils";
-import { getThumbnailUrl } from "@/services/api";
+import { getThumbnailUrl, tmdbImageUrl } from "@/services/api";
 import { useMediaStore } from "@/stores/mediaStore";
 
 interface MediaGridProps {
@@ -37,9 +37,16 @@ export default function MediaGrid({ media, onSelect, selectedId }: MediaGridProp
             selectedId === item.id && "ring-2 ring-primary-500"
           )}
         >
-          {/* Thumbnail */}
-          <div className="relative aspect-video bg-dark-700">
-            {item.thumbnail ? (
+          {/* Thumbnail (TMDB poster takes priority) */}
+          <div className="relative aspect-[2/3] bg-dark-700">
+            {item.scraped?.poster_path ? (
+              <img
+                src={tmdbImageUrl(item.scraped.poster_path, "w342")!}
+                alt={item.scraped.title ?? item.name}
+                className="w-full h-full object-cover"
+                loading="lazy"
+              />
+            ) : item.thumbnail ? (
               <img
                 src={getThumbnailUrl(item.id)}
                 alt={item.name}
@@ -94,8 +101,19 @@ export default function MediaGrid({ media, onSelect, selectedId }: MediaGridProp
           {/* Info */}
           <div className="p-3">
             <h3 className="text-sm font-medium text-white truncate">
-              {item.name}
+              {item.scraped?.title ?? item.name}
             </h3>
+            {(item.scraped?.year || item.scraped?.rating) && (
+              <div className="flex items-center gap-2 mt-1 text-xs text-dark-400">
+                {item.scraped.year && <span>{item.scraped.year}</span>}
+                {item.scraped.rating && (
+                  <span className="flex items-center gap-0.5 text-yellow-400">
+                    <Star className="w-3 h-3 fill-current" />
+                    {item.scraped.rating.toFixed(1)}
+                  </span>
+                )}
+              </div>
+            )}
             <div className="flex items-center gap-2 mt-1 text-xs text-dark-400">
               {item.metadata.width && item.metadata.height && (
                 <span>{getResolutionLabel(item.metadata.width, item.metadata.height)}</span>
@@ -124,3 +142,5 @@ export default function MediaGrid({ media, onSelect, selectedId }: MediaGridProp
     </div>
   );
 }
+
+

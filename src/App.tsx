@@ -8,6 +8,7 @@ import Settings from "./components/Settings/Settings";
 import DouyinInput from "./components/Douyin/DouyinInput";
 import History from "./components/History/History";
 import Online from "./components/Online/Online";
+import Collections from "./components/Collections/Collections";
 import Torrent from "./components/Torrent/Torrent";
 import { waitForServer } from "@/services/api";
 import { useMediaStore } from "./stores/mediaStore";
@@ -32,6 +33,7 @@ function App() {
           <Route path="search" element={<Search />} />
           <Route path="douyin" element={<DouyinInput />} />
           <Route path="online" element={<Online />} />
+          <Route path="collections" element={<Collections />} />
           <Route path="torrent" element={<Torrent />} />
           <Route path="history" element={<History />} />
           <Route path="settings" element={<Settings />} />
@@ -43,3 +45,4 @@ function App() {
 }
 
 export default App;
+

@@ -1,4 +1,4 @@
-import type { ApiResponse, AppConfig, DouyinVideo, MediaFile, OnlineRecentItem, PaginatedResponse, PlayHistory, ProbeResult, ScanProgress, LibraryStatistics, TorrentSessionInfo, TranscodeTask } from "@/types";
+import type { ApiResponse, AppConfig, DouyinVideo, MediaFile, MovieCollection, OnlineRecentItem, PaginatedResponse, PlayHistory, ProbeResult, ScanProgress, LibraryStatistics, ScraperStatus, SynologyShare, TorrentSessionInfo, TranscodeTask } from "@/types";
 
 const BASE_URL = "http://127.0.0.1:8080";
 
@@ -293,5 +293,63 @@ export async function deleteTorrent(id: string): Promise<ApiResponse<null>> {
   return fetchApi(`/api/torrent/${encodeURIComponent(id)}`, {
     method: "DELETE",
   });
+}
+
+
+
+// -- Metadata scraper (TMDB) ---------------------------------------------
+
+export function tmdbImageUrl(path: string | undefined, size = "w500"): string | null {
+  if (!path) return null;
+  return `https://image.tmdb.org/t/p/${size}${path.startsWith("/") ? "" : "/"}${path}`;
+}
+
+export async function getScraperStatus(): Promise<ApiResponse<ScraperStatus>> {
+  return fetchApi("/api/scraper/status");
+}
+
+export async function setScraperKey(
+  apiKey: string | null
+): Promise<ApiResponse<ScraperStatus>> {
+  return fetchApi(
+    "/api/scraper/key",
+    { method: "POST", body: JSON.stringify({ api_key: apiKey }) },
+    15000
+  );
+}
+
+export async function refreshAllScrapes(): Promise<ApiResponse<ScraperStatus>> {
+  return fetchApi("/api/scraper/refresh/all", { method: "POST" });
+}
+
+export async function refreshOneScrape(
+  id: string
+): Promise<ApiResponse<ScraperStatus>> {
+  return fetchApi(`/api/scraper/refresh/${encodeURIComponent(id)}`, {
+    method: "POST",
+  });
+}
+
+export async function listCollections(): Promise<ApiResponse<MovieCollection[]>> {
+  return fetchApi("/api/scraper/collections");
+}
+
+export async function suggestSynologyPath(
+  body: SynologyShare
+): Promise<ApiResponse<{ path: string }>> {
+  return fetchApi("/api/synology/path", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function listSynologyShares(
+  quickconnectId: string
+): Promise<ApiResponse<{ name: string; description?: string }[]>> {
+  return fetchApi(
+    "/api/synology/shares",
+    { method: "POST", body: JSON.stringify({ quickconnect_id: quickconnectId }) },
+    15000
+  );
 }
 

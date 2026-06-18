@@ -50,6 +50,9 @@ pub struct UpdateConfigRequest {
     pub library_paths: Option<Vec<String>>,
     pub auto_scan: Option<bool>,
     pub server_port: Option<u16>,
+    /// Triple Option so the front-end can clear the key by sending null.
+    #[serde(default)]
+    pub tmdb_api_key: Option<Option<String>>,
 }
 
 /// API响应
@@ -361,6 +364,13 @@ pub async fn update_config(
         }
         if let Some(port) = request.server_port {
             config.server_port = port;
+        }
+        if let Some(key) = request.tmdb_api_key {
+            config.tmdb_api_key = key.filter(|s| !s.is_empty());
+            state.scraper.set_api_key(config.tmdb_api_key.clone());
+            if config.tmdb_api_key.is_some() {
+                state.scraper.enqueue_pending();
+            }
         }
     }) {
         Ok(config) => Json(ApiResponse::success(config)),
@@ -812,6 +822,7 @@ fn parse_range(s: &str, total: u64) -> Option<(u64, u64)> {
     }
     Some((start, end))
 }
+
 
 
 

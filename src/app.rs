@@ -56,17 +56,30 @@ pub async fn run_server() -> anyhow::Result<()> {
     let torrents = Arc::new(TorrentManager::new(torrent_dir));
     info!("Torrent manager initialized");
 
+    let scraper = crate::metadata_scraper::Scraper::new(storage.clone());
+    info!("Metadata scraper initialized");
+    // Seed the scraper's in-memory API key with whatever is on disk or
+    // in the env. Settings -> Metadata can update it at runtime.
+    scraper.set_api_key(
+        config
+            .tmdb_api_key
+            .clone()
+            .or_else(|| std::env::var("TMDB_API_KEY").ok().filter(|s| !s.is_empty())),
+    );
+
     let state = AppState {
         storage: storage.clone(),
         scanner: scanner.clone(),
         transcoder: transcoder.clone(),
         douyin: douyin.clone(),
         torrents: torrents.clone(),
+        scraper: scraper.clone(),
     };
 
     if config.auto_scan && !config.library_paths.is_empty() {
         let scanner = scanner.clone();
         let storage = storage.clone();
+        let scraper = scraper.clone();
         let paths = config.library_paths.clone();
 
         tokio::spawn(async move {
@@ -77,6 +90,10 @@ pub async fn run_server() -> anyhow::Result<()> {
                         error!("Failed to save library: {}", e);
                     } else {
                         info!("Automatic scan completed: {} files found", files.len());
+                        // Enqueue any items that need metadata for the background
+                        // scraper. This is best-effort; failures are logged and
+                        // skipped.
+                        scraper.enqueue_pending();
                     }
                 }
                 Err(e) => {

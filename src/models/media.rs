@@ -27,6 +27,10 @@ pub struct MediaFile {
     pub favorite: bool,
     pub last_played: Option<String>,
     pub play_progress: Option<f64>,
+    /// TMDB-style metadata populated by the background scraper. Not
+    /// emitted when None so older library.json files keep loading.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scraped: Option<ScrapedMetadata>,
 }
 
 /// 媒体元数据
@@ -103,6 +107,14 @@ pub struct AppConfig {
     pub server_port: u16,
     pub thumbnail_width: u32,
     pub thumbnail_height: u32,
+    /// Optional TMDB v3 API key. When set, the background scraper will
+    /// enrich new library items with poster, plot, cast, etc.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tmdb_api_key: Option<String>,
+    /// Optional list of Synology QuickConnect IDs the user has configured.
+    /// The UI in Settings -> Synology turns these into share paths.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub synology_shares: Vec<SynologyShare>,
 }
 
 /// 转码质量
@@ -126,6 +138,8 @@ impl Default for AppConfig {
             server_port: 8080,
             thumbnail_width: 320,
             thumbnail_height: 180,
+            tmdb_api_key: None,
+            synology_shares: Vec::new(),
         }
     }
 }
@@ -206,6 +220,7 @@ impl MediaFile {
             favorite: false,
             last_played: None,
             play_progress: None,
+            scraped: None,
         }
     }
 
@@ -258,3 +273,56 @@ impl MediaFile {
         }
     }
 }
+
+
+/// TMDB-style enriched metadata for a single media file. Populated by the
+/// background scraper (TMDB as the primary source). Optional on disk so
+/// older library.json files keep loading.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ScrapedMetadata {
+    pub source: Option<String>,
+    pub tmdb_id: Option<i64>,
+    pub title: Option<String>,
+    pub original_title: Option<String>,
+    pub year: Option<i32>,
+    pub plot: Option<String>,
+    pub rating: Option<f64>,
+    pub genres: Vec<String>,
+    pub director: Option<String>,
+    pub cast: Vec<String>,
+    pub runtime_minutes: Option<i32>,
+    pub poster_path: Option<String>,
+    pub backdrop_path: Option<String>,
+    pub collection_id: Option<i64>,
+    pub collection_name: Option<String>,
+    pub scraped_at: Option<String>,
+    pub scrape_error: Option<String>,
+}
+
+/// A TMDB collection (e.g. "The Dark Knight Trilogy") groups several
+/// movies. Returned by GET /api/scraper/collections.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MovieCollection {
+    pub id: i64,
+    pub name: String,
+    pub overview: Option<String>,
+    pub poster_path: Option<String>,
+    pub backdrop_path: Option<String>,
+    pub movies: Vec<MediaFile>,
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SynologyShare {
+    /// QuickConnect id, e.g. the part before ".quickconnect.to".
+    pub quickconnect_id: String,
+    /// The local / LAN host (hostname or IP) used to build the UNC path.
+    /// Optional: when missing the QuickConnect relay URL is used as-is.
+    pub host: Option<String>,
+    /// SMB share name on the NAS, e.g. "data".
+    pub share: String,
+    /// Free-form description shown in the UI.
+    #[serde(default)]
+    pub label: Option<String>,
+}
+

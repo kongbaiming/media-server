@@ -1,6 +1,7 @@
 use super::handlers::*;
 use super::online_handlers;
 use super::torrent_handlers;
+use super::scraper_handlers;
 use super::AppState;
 use axum::{
     routing::{delete, get, post, put},
@@ -56,6 +57,15 @@ pub fn api_routes() -> Router<AppState> {
 
         // 系统信息
         .route("/api/system/info", get(get_system_info))
+        // 刮削 / Synology
+        .route("/api/scraper/status", get(scraper_handlers::status))
+        .route("/api/scraper/key", post(scraper_handlers::set_key))
+        .route("/api/scraper/refresh/all", post(scraper_handlers::refresh_all))
+        .route("/api/scraper/refresh/:id", post(scraper_handlers::refresh_one))
+        .route("/api/scraper/collections", get(scraper_handlers::list_collections))
+        .route("/api/scraper/image", get(scraper_handlers::image_url))
+        .route("/api/synology/path", post(scraper_handlers::suggest_unc))
+        .route("/api/synology/shares", post(scraper_handlers::list_shares))
 }
 
 /// 流媒体 routes
@@ -79,6 +89,12 @@ pub fn static_routes() -> Router<AppState> {
     Router::new()
         .nest_service("/", ServeDir::new("static"))
 }
+
+
+
+
+
+
 
 
 
