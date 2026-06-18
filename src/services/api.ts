@@ -10,15 +10,23 @@ import type {
   TranscodeTask,
 } from "@/types";
 
-const BASE_URL = "http://localhost:8080";
+const BASE_URL = "http://127.0.0.1:8080";
+
+export function isTauriApp(): boolean {
+  return typeof window !== "undefined" && "__TAURI__" in window;
+}
+
+function defaultTimeout(): number {
+  return isTauriApp() ? 15000 : 3000;
+}
 
 async function fetchApi<T>(
   endpoint: string,
   options?: RequestInit,
-  timeoutMs = 3000
+  timeoutMs?: number
 ): Promise<T> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs ?? defaultTimeout());
 
   try {
     const response = await fetch(`${BASE_URL}${endpoint}`, {
@@ -182,6 +190,19 @@ export async function getStatistics(): Promise<
   ApiResponse<LibraryStatistics>
 > {
   return fetchApi("/api/stats");
+}
+
+export async function waitForServer(maxAttempts = 30): Promise<boolean> {
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      const response = await fetch(`${BASE_URL}/api/system/info`);
+      if (response.ok) return true;
+    } catch {
+      // server still starting
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  return false;
 }
 
 // System API

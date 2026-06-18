@@ -4,7 +4,8 @@
     "beforeBuildCommand": "npm run build",
     "devPath": "http://localhost:1420",
     "distDir": "../dist",
-    "withGlobalTauri": false
+    "withGlobalTauri": true,
+    "features": ["system-tray", "window-all"]
   },
   "package": {
     "productName": "MediaVault",
@@ -13,27 +14,15 @@
   "tauri": {
     "allowlist": {
       "all": false,
-      "shell": {
-        "all": false,
-        "execute": true,
-        "sidecar": true,
-        "open": true
-      },
-      "fs": {
-        "all": true,
-        "readFile": true,
-        "writeFile": true,
-        "readDir": true,
-        "createDir": true,
-        "removeFile": true,
-        "removeDir": true
-      },
-      "path": {
-        "all": true
-      },
       "window": {
         "all": true
       }
+    },
+    "systemTray": {
+      "iconPath": "icons/32x32.png",
+      "iconAsTemplate": false,
+      "menuOnLeftClick": false,
+      "title": "MediaVault"
     },
     "bundle": {
       "active": true,

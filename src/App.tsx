@@ -7,14 +7,19 @@ import Search from "./components/Search/Search";
 import Settings from "./components/Settings/Settings";
 import DouyinInput from "./components/Douyin/DouyinInput";
 import History from "./components/History/History";
+import { waitForServer } from "@/services/api";
 import { useMediaStore } from "./stores/mediaStore";
 
 function App() {
   const { fetchLibrary, fetchConfig } = useMediaStore();
 
   useEffect(() => {
-    fetchLibrary();
-    fetchConfig();
+    const init = async () => {
+      await waitForServer();
+      fetchLibrary();
+      fetchConfig();
+    };
+    init();
   }, [fetchLibrary, fetchConfig]);
 
   return (

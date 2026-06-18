@@ -11,11 +11,19 @@ edition = "2021"
 tauri-build = { version = "1.5", features = [] }
 
 [dependencies]
-tauri = { version = "1.5", features = [ "shell-sidecar", "window-all", "path-all", "fs-all", "shell-execute", "shell-open"] }
+tauri = { version = "1.5", features = [ "window-all", "system-tray"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+dirs = "5"
 media-server = { path = ".." }
 
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
+# Pass-through features so that `tauri.conf.json -> build.features` (which the
+# Tauri CLI passes to cargo as `--features` on this package) can enable the
+# corresponding feature on the `tauri` dependency. The build script is happy
+# because these names do not appear in the allowlist, and the runtime tray
+# and window APIs are happy because the underlying tauri features are on.
+system-tray = ["tauri/system-tray"]
+window-all = ["tauri/window-all"]

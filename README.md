@@ -2,7 +2,7 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-A local media server built with **Rust + React**, featuring library management, HLS streaming, transcoding, and **Douyin (TikTok China) link playback**.
+A local media server built with **Rust + React**, featuring library management, HLS streaming, transcoding, and **Douyin (TikTok China) link playback**. Ships as a Tauri-based **desktop client** and also runs as a plain web app.
 
 ## Features
 
@@ -13,6 +13,9 @@ A local media server built with **Rust + React**, featuring library management, 
 - **Transcoding** — FFmpeg-powered HLS output (optional)
 - **Search & Favorites** — Find and bookmark media quickly
 - **Statistics & Settings** — Library stats, paths, port, and more
+- **System Tray** — Window hides to tray so the backend keeps serving while the UI is closed (desktop mode)
+- **Window State Persistence** — Window size, position, and maximized state are remembered across launches
+- **Native Menus** — File / Edit / View / Help, with platform-correct accelerators
 
 ## Supported Formats
 
@@ -29,7 +32,40 @@ A local media server built with **Rust + React**, featuring library management, 
 
 ## Quick Start
 
-### Clone
+### Desktop app (all-in-one, recommended)
+
+A single executable bundles the React UI and the Axum backend. The backend listens on `http://127.0.0.1:8080` in a background thread; the Tauri shell renders the same React app on top.
+
+```bash
+git clone https://github.com/kongbaiming/media-server.git
+cd media-server
+npm install
+npm run tauri dev      # development with devtools enabled
+npm run tauri build    # production installer (msi / nsis / dmg / deb / appimage)
+```
+
+#### Desktop behavior
+
+- The window's close button **hides the window to the system tray** rather than quitting. The backend keeps running so any in-progress streaming/download is not interrupted.
+- The tray icon provides **Show / Hide / Quit**. Double-clicking the tray icon toggles the window.
+- **File → Quit MediaVault** (or `Ctrl/Cmd+Q`) is the only way to fully exit the process.
+- Window size, position, and maximized state are persisted automatically.
+- All file paths and config live under `~/.mediavault/`, same as the web mode.
+
+#### Native menus
+
+| Menu    | Items |
+|---------|-------|
+| File    | Settings…, Quit MediaVault |
+| Edit    | Undo, Redo, Cut, Copy, Paste, Select All |
+| View    | Enter Full Screen, Reload, Toggle Developer Tools (debug builds only) |
+| Help    | About MediaVault |
+
+### Web mode (client-server)
+
+The same backend serves a browser-only UI on `http://localhost:1420` if you'd rather not use the desktop shell.
+
+**Clone**
 
 ```bash
 git clone https://github.com/kongbaiming/media-server.git
@@ -103,7 +139,8 @@ Supported link formats:
 media-server/
 ├── src/                 # Rust backend + React frontend
 │   ├── main.rs          # Server entry
-│   ├── lib.rs
+│   ├── lib.rs           # Library entry (used by the Tauri shell)
+│   ├── app.rs           # Server bootstrap & Tokio runtime helpers
 │   ├── models/
 │   ├── scanner/
 │   ├── metadata/
@@ -114,7 +151,7 @@ media-server/
 │   ├── components/      # React UI
 │   ├── services/        # API client
 │   └── stores/
-├── src-tauri/           # Tauri desktop wrapper
+├── src-tauri/           # Tauri desktop shell (tray, menu, window state)
 ├── package.json
 └── Cargo.toml
 ```
@@ -133,6 +170,7 @@ media-server/
 | Douyin | `GET /api/douyin/proxy?url=...` | Proxy video stream |
 | Config | `GET/PUT /api/config` | App settings |
 | Stats | `GET /api/stats` | Library statistics |
+| System | `GET /api/system/info` | Backend / FFmpeg status |
 
 Default server port: **8080**
 

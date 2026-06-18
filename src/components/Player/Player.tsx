@@ -84,7 +84,7 @@ export default function Player() {
         video.play().catch(console.error);
       });
 
-      hls.on(Hls.Events.ERROR, (event, data) => {
+      hls.on(Hls.Events.ERROR, (_event, data) => {
         if (data.fatal) {
           console.error("HLS fatal error:", data);
           // Fallback to direct stream
@@ -210,3 +210,4 @@ export default function Player() {
     </div>
   );
 }
+

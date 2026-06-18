@@ -26,3 +26,7 @@ Thumbs.db
 
 # User data (runtime)
 .mediavault/
+
+# Codex
+.claude/
+
